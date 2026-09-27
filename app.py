@@ -4,11 +4,10 @@ from transformers import pipeline
 
 app = Flask(__name__)
 
-print("Loading Open Meta Llama 3.2 1B Model (No Token Required)...")
-# unsloth repo se Meta Llama model direct download hota hai bina token ke
+print("Loading IBM Granite 3.0 2B Instruct Model...")
 pipe = pipeline(
     "text-generation",
-    model="unsloth/Llama-3.2-1B-Instruct",
+    model="muhammad-taqi512/LYRA-GRANITE",
     torch_dtype=torch.float32,
     device_map="auto"
 )
@@ -20,48 +19,36 @@ def home():
 
 @app.route("/generate", methods=["POST"])
 def generate():
-    data = request.json or {}
+    data = request.json
     user_prompt = data.get("prompt", "")
 
     if not user_prompt:
         return jsonify({"response": "Please enter a message."}), 400
 
     messages = [
-        {
-            "role": "system",
-            "content": """You are "Lyramoon", an intelligent AI assistant created by MUHAMMAD TAQI.
-When asked about your identity, creator, or links, always maintain this context:
-- Name: Lyramoon
-- Created By: MUHAMMAD TAQI
-- Family AI Link: https://lyra.oneapp.dev/
-- Creator's Official Website: https://nexura.oneapp.dev/
-
-Rules:
-1. Always be polite, clear, and helpful.
-2. Provide precise, factual, and correct information. Never invent fake facts or hallucinate details.
-3. If you do not know something, state it clearly instead of guessing."""
-        },
+        {"role": "system", "content": "You are a helpful AI assistant, YOUR NAME IS LYRA-GRANITE AND YOU ARE FEMALE AI, YOUR OWNER AND CREATOR AND FOUNDER IS MUHAMMAD TAQI."},
         {"role": "user", "content": user_prompt}
     ]
-
+    
+    # Granite model ke liye chat template apply karna
     prompt = pipe.tokenizer.apply_chat_template(
         messages, tokenize=False, add_generation_prompt=True
     )
 
     outputs = pipe(
-        prompt,
-        max_new_tokens=256,
-        do_sample=True,
-        temperature=0.7,
-        top_k=50,
+        prompt, 
+        max_new_tokens=256, 
+        do_sample=True, 
+        temperature=0.7, 
+        top_k=50, 
         top_p=0.95
     )
-
+    
     generated_text = outputs[0]["generated_text"]
-
-    # Meta Llama 3 / 3.2 special token parsing
-    if "<|start_header_id|>assistant<|end_header_id|>" in generated_text:
-        response = generated_text.split("<|start_header_id|>assistant<|end_header_id|>")[-1].replace("<|eot_id|>", "").strip()
+    
+    # Model ki input prompt ko remove karke sirf assistant ka jawab nikalna
+    if prompt in generated_text:
+        response = generated_text.replace(prompt, "").strip()
     else:
         response = generated_text.strip()
 
